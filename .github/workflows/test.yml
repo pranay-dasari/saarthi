@@ -30,16 +30,13 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-        working-directory: saarthi
 
       - name: Write .env.local
-        working-directory: saarthi
         run: |
           echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.local
 
       - name: Start dev server
-        working-directory: saarthi
         run: npm run dev &
         env:
           NODE_ENV: development
@@ -60,22 +57,21 @@ jobs:
           done
 
       - name: Run Phase 1 tests
-        working-directory: saarthi
         run: npx vitest run tests/phase1.test.ts
 
       - name: Run Phase 2 tests
-        working-directory: saarthi
         run: npx vitest run tests/phase2.test.ts
 
       - name: Run Phase 3 tests
-        working-directory: saarthi
         run: npx vitest run tests/phase3.test.ts
+
+      - name: Run Phase 4 tests
+        run: npx vitest run tests/phase4.test.ts
 
       - name: Upload test results on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: test-logs
-          path: |
-            saarthi/tests/
+          path: tests/
           retention-days: 7
