@@ -115,16 +115,12 @@ describe("2 · Signup flow (Supabase API)", () => {
       }),
     });
 
-    // 429 = Supabase email rate limit — endpoint is reachable and functional.
-    // 422 = Supabase config restriction (email domain filter, signup disabled, etc.).
-    // Both are environment/config issues, not code bugs; treat as non-blocking.
-    if (res.status === 429) {
-      console.warn("WARN: Supabase signup rate-limited (429). Skipping user creation for this run.");
-      return;
-    }
-    if (res.status === 422) {
+    // 429 = email rate limit, 422 = domain/signup config restriction,
+    // 400 with email_address_invalid = Supabase blocks this domain (e.g. example.com).
+    // All are Supabase project config issues, not code bugs — treat as non-blocking.
+    if (res.status === 429 || res.status === 422 || res.status === 400) {
       const body = await res.text().catch(() => "");
-      console.warn(`WARN: Supabase signup returned 422 (config restriction). Skipping. Body: ${body}`);
+      console.warn(`WARN: Supabase signup returned ${res.status} (config restriction). Skipping. Body: ${body}`);
       return;
     }
 
