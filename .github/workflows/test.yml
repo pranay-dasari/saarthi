@@ -46,8 +46,9 @@ jobs:
         run: |
           echo "Waiting for http://localhost:3000 ..."
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000/login -o /dev/null 2>/dev/null; then
-              echo "Server ready after ${i}x2s"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/login 2>/dev/null || echo "000")
+            if [ "$STATUS" != "000" ]; then
+              echo "Server ready (HTTP $STATUS) after ${i}x2s"
               break
             fi
             if [ "$i" -eq 30 ]; then
