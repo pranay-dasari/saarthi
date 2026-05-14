@@ -11,7 +11,7 @@ jobs:
   test:
     name: Phase Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
 
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -36,21 +36,23 @@ jobs:
           echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.local
           echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.local
 
-      - name: Start dev server
-        run: npm run dev &
-        env:
-          NODE_ENV: development
+      - name: Build
+        run: npm run build
+
+      - name: Start production server
+        run: npm run start > /tmp/server.log 2>&1 &
 
       - name: Wait for server
         run: |
           echo "Waiting for http://localhost:3000 ..."
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3000 -o /dev/null 2>/dev/null; then
+            if curl -sf http://localhost:3000/login -o /dev/null 2>/dev/null; then
               echo "Server ready after ${i}x2s"
               break
             fi
             if [ "$i" -eq 30 ]; then
-              echo "Server did not start. Dumping logs..."
+              echo "Server did not start. Server logs:"
+              cat /tmp/server.log
               exit 1
             fi
             sleep 2
@@ -68,10 +70,10 @@ jobs:
       - name: Run Phase 4 tests
         run: npx vitest run tests/phase4.test.ts
 
-      - name: Upload test results on failure
+      - name: Upload server log on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: test-logs
-          path: tests/
+          name: server-log
+          path: /tmp/server.log
           retention-days: 7
