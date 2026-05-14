@@ -1,0 +1,81 @@
+name: Saarthi Tests
+
+on:
+  push:
+    branches: ["main", "dev"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Phase Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      BASE_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: saarthi
+
+      - name: Write .env.local
+        working-directory: saarthi
+        run: |
+          echo "NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> .env.local
+          echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}" >> .env.local
+
+      - name: Start dev server
+        working-directory: saarthi
+        run: npm run dev &
+        env:
+          NODE_ENV: development
+
+      - name: Wait for server
+        run: |
+          echo "Waiting for http://localhost:3000 ..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 -o /dev/null 2>/dev/null; then
+              echo "Server ready after ${i}x2s"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "Server did not start. Dumping logs..."
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Run Phase 1 tests
+        working-directory: saarthi
+        run: npx vitest run tests/phase1.test.ts
+
+      - name: Run Phase 2 tests
+        working-directory: saarthi
+        run: npx vitest run tests/phase2.test.ts
+
+      - name: Run Phase 3 tests
+        working-directory: saarthi
+        run: npx vitest run tests/phase3.test.ts
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            saarthi/tests/
+          retention-days: 7
